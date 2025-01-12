@@ -839,7 +839,7 @@ class GoogleSheetManager:
         max_tries=5
     )
     def initialize_connection(self):
-        self.gc = gspread.service_account(self.json_key_path)
+        self.gc = gspread.service_account(self.json_str)
         self.doc = self.gc.open_by_key(self.sheet_key)
 
     def get_worksheet(self, sheet_name):
