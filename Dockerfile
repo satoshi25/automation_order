@@ -20,8 +20,7 @@ RUN CHROME_DRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_
 WORKDIR /app
 COPY . /app/
 
-RUN mkdir -p /app/temp && \
-    chmod 777 /app/temp
+RUN chmod 777 /app
 
 RUN pip install --no-cache-dir -r requirements.txt
 
