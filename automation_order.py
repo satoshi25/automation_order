@@ -50,6 +50,10 @@ store_api_key = os.getenv("STORE_API_KEY").strip('"').strip()
 store_basic_url = os.getenv("STORE_BASIC_URL").strip('"').strip()
 make_hook_url = os.getenv("MAKE_HOOK_URL")
 
+if json_str:
+    with open('temp_credentials.json', 'w') as f:
+        f.write(json_str)
+filename = 'temp_credentials.json'
 
 class SocialMediaValidator:
     def __init__(self, apify_token: str, actor_id: str):
@@ -826,8 +830,8 @@ async def process_twitter_profile_for_tweets(order, validator):
 #     print(f"JSON 키 파일이 존재하지 않습니다: {json_key_path}")
 
 class GoogleSheetManager:
-    def __init__(self, json_str, sheet_key):
-        self.json_str = json_str
+    def __init__(self, json_file_name, sheet_key):
+        self.json_file_name = json_file_name
         self.sheet_key = sheet_key
         self.gc = None
         self.doc = None
@@ -839,7 +843,7 @@ class GoogleSheetManager:
         max_tries=5
     )
     def initialize_connection(self):
-        self.gc = gspread.service_account(self.json_str)
+        self.gc = gspread.service_account(filename=self.json_file_name)
         self.doc = self.gc.open_by_key(self.sheet_key)
 
     def get_worksheet(self, sheet_name):
