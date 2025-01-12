@@ -22,6 +22,7 @@ import gspread
 import pandas as pd
 import traceback
 import requests
+import json
 
 # .env 파일 로드
 load_dotenv()
@@ -33,7 +34,7 @@ password = os.getenv("PASSWORD")
 login_page = os.getenv("LOGIN_PAGE")
 order_page = os.getenv("ORDER_PAGE")
 dashboard_page = os.getenv("DASHBOARD_PAGE")
-json_key_path = os.getenv("JSON_KEY")
+json_str = os.getenv("JSON_KEY")
 sheet_key = os.getenv("SHEET_KEY")
 apify_token = os.getenv("APIFY_TOKEN")
 actor_insta_profile = os.getenv("ACTOR_PROFILE_INSTA").strip('"').strip()
@@ -818,10 +819,15 @@ async def process_twitter_profile_for_tweets(order, validator):
 
 
 
-if not os.path.exists(json_key_path):
-    print(f"JSON 키 파일이 존재하지 않습니다: {json_key_path}")
+# if not os.path.exists(json_key_path):
+#     print(f"JSON 키 파일이 존재하지 않습니다: {json_key_path}")
 
-gc = gspread.service_account(json_key_path)
+if json_str:
+    with open('credentials.json', 'w') as f:
+        f.write(json_str)
+
+gc = gspread.service_account(filename='credentials.json')
+
 doc = gc.open_by_key(sheet_key)
 service_sheets = doc.worksheet('market_service_list')
 order_sheets = doc.worksheet('market_store_order_list')
