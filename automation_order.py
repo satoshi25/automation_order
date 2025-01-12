@@ -12,6 +12,8 @@ from apify_client import ApifyClient
 from apify_client import ApifyClientAsync
 from apify_client._errors import ApifyApiError  # ApifyApiError import 추가
 from typing import Optional, Tuple
+from google.auth.exceptions import TransportError
+
 # from datetime import datetime
 
 
@@ -23,6 +25,7 @@ import pandas as pd
 import traceback
 import requests
 import json
+import backoff
 
 # .env 파일 로드
 load_dotenv()
@@ -822,30 +825,70 @@ async def process_twitter_profile_for_tweets(order, validator):
 # if not os.path.exists(json_key_path):
 #     print(f"JSON 키 파일이 존재하지 않습니다: {json_key_path}")
 
-if json_str:
-    with open('credentials.json', 'w') as f:
-        f.write(json_str)
+class GoogleSheetManager:
+    def __init__(self, json_str, sheet_key):
+        self.json_str = json_str
+        self.sheet_key = sheet_key
+        self.gc = None
+        self.doc = None
+        self.initialize_connection()
 
-gc = gspread.service_account(filename='credentials.json')
+    @backoff.on_exception(
+        backoff.expo,
+        (TransportError, requests.exceptions.RequestException),
+        max_tries=5
+    )
+    def initialize_connection(self):
+        self.gc = gspread.service_account(self.json_key_path)
+        self.doc = self.gc.open_by_key(self.sheet_key)
 
-doc = gc.open_by_key(sheet_key)
-service_sheets = doc.worksheet('market_service_list')
-order_sheets = doc.worksheet('market_store_order_list')
-manual_order_sheets = doc.worksheet('manual_order_list')
+    def get_worksheet(self, sheet_name):
+        try:
+            return self.doc.worksheet(sheet_name)
+        except Exception:
+            self.initialize_connection()  # 연결 재시도
+            return self.doc.worksheet(sheet_name)
 
-def get_sheet_data(sheet):
-    header = sheet.row_values(1)  # 1번째 행이 헤더인 경우
-    data = sheet.get_all_records()
+    @backoff.on_exception(
+        backoff.expo,
+        (TransportError, requests.exceptions.RequestException),
+        max_tries=5
+    )
+    def get_sheet_data(self, sheet_name):
+        worksheet = self.get_worksheet(sheet_name)
+        try:
+            header = worksheet.row_values(1)
+            data = worksheet.get_all_records()
 
-    if not data:  # 데이터가 없는 경우
-        # 빈 DataFrame을 생성하되, 컬럼은 명시적으로 지정
-        df = pd.DataFrame(columns=header)
-    else:
-        df = pd.DataFrame(data)
+            if not data:
+                df = pd.DataFrame(columns=header)
+            else:
+                df = pd.DataFrame(data)
+            
+            return df
+        except Exception as e:
+            print(f"시트 데이터 가져오기 실패: {e}")
+            raise
+
+sheet_manager = GoogleSheetManager(json_str, sheet_key)
+
+service_sheets = sheet_manager.get_worksheet('market_service_list')
+order_sheets = sheet_manager.get_worksheet('market_store_order_list')
+manual_order_sheets = sheet_manager.get_worksheet('manual_order_list')
+
+# def get_sheet_data(sheet):
+#     header = sheet.row_values(1)  # 1번째 행이 헤더인 경우
+#     data = sheet.get_all_records()
+
+#     if not data:  # 데이터가 없는 경우
+#         # 빈 DataFrame을 생성하되, 컬럼은 명시적으로 지정
+#         df = pd.DataFrame(columns=header)
+#     else:
+#         df = pd.DataFrame(data)
     
-    return df
+#     return df
 
-service_sheet = get_sheet_data(service_sheets)
+service_sheet = sheet_manager.get_sheet_data(service_sheets)
 
 
 def get_service_number(df, service_name: str, detail_option: str):
@@ -1238,7 +1281,7 @@ def process_eship(driver, orders, order_element, alert, wait):
 
 def alert_manual_orders(hook_url, manual_sheet, orders):
 
-    df = get_sheet_data(manual_sheet)
+    df = sheet_manager.get_sheet_data(manual_sheet)
 
     for order in orders:
         order_num = order.get("market_order_num")
@@ -1274,7 +1317,7 @@ def alert_manual_orders(hook_url, manual_sheet, orders):
 # 메뉴얼 주문 시트에 입력
 def add_manual_order(manual_order_sheet, orders):
 
-    manual_order_data = get_sheet_data(manual_order_sheet)
+    manual_order_data = sheet_manager.get_sheet_data(manual_order_sheet)
     try:
         for order in orders:
             # 시트에 없을때만 입력하도록 마켓주문번호로 필터
