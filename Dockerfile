@@ -19,7 +19,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 RUN mkdir -p /root/.cache/selenium \
+    && mkdir -p /tmp/chrome-data \
     && chmod -R 777 /root/.cache/selenium \
+    && chmod -R 777 /tmp/chrome-data \
     && chmod 777 /app
 
 CMD ["python", "main.py"]
