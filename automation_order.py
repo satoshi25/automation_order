@@ -836,11 +836,11 @@ class GoogleSheetManager:
     def initialize_connection(self):
         try:
             credentials = service_account.Credentials.from_service_account_info(
-                json.loads(json_str),
+                json.loads(os.getenv("JSON_STR")),
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
             self.gc = gspread.authorize(credentials)
-            self.doc = self.gc.open_by_key(sheet_key)
+            self.doc = self.gc.open_by_key(os.getenv("SHEET_KEY"))
         except Exception as e:
             print(f"연결 초기화 실패: {e}")
             raise
