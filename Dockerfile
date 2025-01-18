@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
     chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 
+RUN useradd -m -d /home/chrome chrome \
+    && chown -R chrome:chrome /home/chrome
+
 WORKDIR /app
 
 COPY requirements.txt .
@@ -18,10 +21,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p /root/.cache/selenium \
-    && mkdir -p /tmp/chrome-data \
-    && chmod -R 777 /root/.cache/selenium \
-    && chmod -R 777 /tmp/chrome-data \
-    && chmod 777 /app
+RUN mkdir -p /home/chrome/.cache/selenium \
+    && mkdir -p /home/chrome/chrome-data \
+    && chown -R chrome:chrome /app \
+    && chown -R chrome:chrome /home/chrome/.cache \
+    && chown -R chrome:chrome /home/chrome/chrome-data
 
-CMD ["python", "main.py"]
+USER chrome
+
+# 실행 및 로깅
+CMD ["python", "-u", "main.py"]
