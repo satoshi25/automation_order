@@ -962,6 +962,7 @@ def init_driver():
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--disable-software-rasterizer')
+    chrome_options.add_argument('--user-data-dir=/tmp/chrome-data')
     driver = webdriver.Chrome(options=chrome_options)
     return driver
 
