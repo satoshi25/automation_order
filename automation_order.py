@@ -47,11 +47,11 @@ store_api_key = os.getenv("STORE_API_KEY").strip('"').strip()
 store_basic_url = os.getenv("STORE_BASIC_URL").strip('"').strip()
 make_hook_url = os.getenv("MAKE_HOOK_URL")
 
-print()
-print(f"google: {json_str[:20]}")
-print()
-print(f"sheet: {sheet_key[:10]}")
-print()
+# print()
+# print(f"google: {json_str[:20]}")
+# print()
+# print(f"sheet: {sheet_key[:10]}")
+# print()
 
 class SocialMediaValidator:
     def __init__(self, apify_token: str, actor_id: str):
@@ -841,9 +841,9 @@ class GoogleSheetManager:
     def initialize_connection(self):
         try:
             print("JSON 문자열 확인:")
-            print(f"Length: {len(json_str)}")
-            print(f"First part: {json_str[:100]}...")
-            print(f"Contains private_key: {'private_key' in json_str}")
+            # print(f"Length: {len(json_str)}")
+            # print(f"First part: {json_str[:100]}...")
+            # print(f"Contains private_key: {'private_key' in json_str}")
         
             credentials_info = json.loads(json_str)
             # print(credentials_info)
@@ -855,17 +855,17 @@ class GoogleSheetManager:
                 credentials_info['private_key'] = pk
             
             print("JSON 파싱 성공")
-            print("private_key 시작 부분:", credentials_info.get('private_key', ''))
-            print(1)
+            # print("private_key 시작 부분:", credentials_info.get('private_key', ''))
+            # print(1)
             credentials = service_account.Credentials.from_service_account_info(
                 credentials_info,
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
-            print(2)
+            # print(2)
             self.gc = gspread.authorize(credentials)
-            print(3)
+            # print(3)
             self.doc = self.gc.open_by_key(sheet_key)
-            print(4)
+            # print(4)
         except Exception as e:
             print(f"연결 초기화 실패: {e}")
             raise
