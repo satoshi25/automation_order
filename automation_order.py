@@ -8,14 +8,11 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
-from apify_client import ApifyClient
 from apify_client import ApifyClientAsync
 from apify_client._errors import ApifyApiError  # ApifyApiError import 추가
 from typing import Optional, Tuple
 from google.auth.exceptions import TransportError
-
-# from datetime import datetime
-
+from google.oauth2 import service_account
 
 import re
 import os
@@ -37,7 +34,7 @@ password = os.getenv("PASSWORD")
 login_page = os.getenv("LOGIN_PAGE")
 order_page = os.getenv("ORDER_PAGE")
 dashboard_page = os.getenv("DASHBOARD_PAGE")
-json_str = os.getenv("JSON_KEY")
+json_str = os.getenv("JSON_STR")
 sheet_key = os.getenv("SHEET_KEY")
 apify_token = os.getenv("APIFY_TOKEN")
 actor_insta_profile = os.getenv("ACTOR_PROFILE_INSTA").strip('"').strip()
@@ -50,10 +47,6 @@ store_api_key = os.getenv("STORE_API_KEY").strip('"').strip()
 store_basic_url = os.getenv("STORE_BASIC_URL").strip('"').strip()
 make_hook_url = os.getenv("MAKE_HOOK_URL")
 
-if json_str:
-    with open('temp_credentials.json', 'w') as f:
-        f.write(json_str)
-filename = 'temp_credentials.json'
 
 class SocialMediaValidator:
     def __init__(self, apify_token: str, actor_id: str):
@@ -830,9 +823,7 @@ async def process_twitter_profile_for_tweets(order, validator):
 #     print(f"JSON 키 파일이 존재하지 않습니다: {json_key_path}")
 
 class GoogleSheetManager:
-    def __init__(self, json_file_name, sheet_key):
-        self.json_file_name = json_file_name
-        self.sheet_key = sheet_key
+    def __init__(self):
         self.gc = None
         self.doc = None
         self.initialize_connection()
@@ -843,13 +834,22 @@ class GoogleSheetManager:
         max_tries=5
     )
     def initialize_connection(self):
-        self.gc = gspread.service_account(filename=self.json_file_name)
-        self.doc = self.gc.open_by_key(self.sheet_key)
+        try:
+            credentials = service_account.Credentials.from_service_account_info(
+                json.loads(json_str),
+                scopes=['https://www.googleapis.com/auth/spreadsheets']
+            )
+            self.gc = gspread.authorize(credentials)
+            self.doc = self.gc.open_by_key(sheet_key)
+        except Exception as e:
+            print(f"연결 초기화 실패: {e}")
+            raise
 
     def get_worksheet(self, sheet_name):
         try:
             return self.doc.worksheet(sheet_name)
-        except Exception:
+        except Exception as e:
+            print(f"get_worksheet 실패: {e}")
             self.initialize_connection()  # 연결 재시도
             return self.doc.worksheet(sheet_name)
 
@@ -874,25 +874,13 @@ class GoogleSheetManager:
             print(f"시트 데이터 가져오기 실패: {e}")
             raise
 
-sheet_manager = GoogleSheetManager(json_str, sheet_key)
+sheet_manager = GoogleSheetManager()
 
 service_sheets = sheet_manager.get_worksheet('market_service_list')
 order_sheets = sheet_manager.get_worksheet('market_store_order_list')
 manual_order_sheets = sheet_manager.get_worksheet('manual_order_list')
 
-# def get_sheet_data(sheet):
-#     header = sheet.row_values(1)  # 1번째 행이 헤더인 경우
-#     data = sheet.get_all_records()
-
-#     if not data:  # 데이터가 없는 경우
-#         # 빈 DataFrame을 생성하되, 컬럼은 명시적으로 지정
-#         df = pd.DataFrame(columns=header)
-#     else:
-#         df = pd.DataFrame(data)
-    
-#     return df
-
-service_sheet = sheet_manager.get_sheet_data(service_sheets)
+service_sheet = sheet_manager.get_sheet_data('market_service_list')
 
 
 def get_service_number(df, service_name: str, detail_option: str):
@@ -904,11 +892,6 @@ def get_service_number(df, service_name: str, detail_option: str):
     :return: str, 일치하는 서비스 번호 (없을 경우 None 반환)
     """
 
-    # print(f"{1}=== 서비스 조회 시도 ===")
-    # print(f"서비스 이름: {service_name}")
-    # print(f"세부 선택: {detail_option}")
-
-    # 조건에 맞는 행 필터링
     filtered_row = df[
         (df['서비스유무'] == 1) &  # 서비스 유무가 1인 경우만
         (df['서비스이름'] == service_name) &  # 서비스 이름이 일치
@@ -924,7 +907,6 @@ def get_service_number(df, service_name: str, detail_option: str):
 
 def add_order_sheet(df, order):
     print()
-    # store_order_num = order.get('store_order_num', '').get('order')
     try:
         row_data = [
             str(order.get('market_order_num', '')),
