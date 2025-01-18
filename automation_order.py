@@ -840,6 +840,15 @@ class GoogleSheetManager:
     )
     def initialize_connection(self):
         try:
+            print("JSON 문자열 확인:")
+            print(f"Length: {len(json_str)}")
+            print(f"First part: {json_str[:100]}...")
+            print(f"Contains private_key: {'private_key' in json_str}")
+        
+            credentials_info = json.loads(json_str)
+            print(credentials_info)
+            print("JSON 파싱 성공")
+            print("private_key 시작 부분:", credentials_info.get('private_key', '')[:100])
             print(1)
             credentials = service_account.Credentials.from_service_account_info(
                 json.loads(json_str),
