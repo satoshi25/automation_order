@@ -47,6 +47,11 @@ store_api_key = os.getenv("STORE_API_KEY").strip('"').strip()
 store_basic_url = os.getenv("STORE_BASIC_URL").strip('"').strip()
 make_hook_url = os.getenv("MAKE_HOOK_URL")
 
+print()
+print(f"google: {json_str[:20]}")
+print()
+print(f"sheet: {sheet_key[:10]}")
+print()
 
 class SocialMediaValidator:
     def __init__(self, apify_token: str, actor_id: str):
