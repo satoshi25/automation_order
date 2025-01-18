@@ -846,9 +846,16 @@ class GoogleSheetManager:
             print(f"Contains private_key: {'private_key' in json_str}")
         
             credentials_info = json.loads(json_str)
-            print(credentials_info)
+            # print(credentials_info)
+            # private_key 형식 보정
+            if 'private_key' in credentials_info:
+                pk = credentials_info['private_key']
+                # 실제 줄바꿈으로 변환
+                pk = pk.replace('\\n', '\n')
+                credentials_info['private_key'] = pk
+            
             print("JSON 파싱 성공")
-            print("private_key 시작 부분:", credentials_info.get('private_key', '')[:100])
+            print("private_key 시작 부분:", credentials_info.get('private_key', ''))
             print(1)
             credentials = service_account.Credentials.from_service_account_info(
                 json.loads(json_str),
