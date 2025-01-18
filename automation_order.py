@@ -858,7 +858,7 @@ class GoogleSheetManager:
             print("private_key 시작 부분:", credentials_info.get('private_key', ''))
             print(1)
             credentials = service_account.Credentials.from_service_account_info(
-                json.loads(json_str),
+                credentials_info,
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
             print(2)
