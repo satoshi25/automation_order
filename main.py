@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class KSTFormatter(logging.Formatter):
     def converter(self, timestamp):
         dt = datetime.fromtimestamp(timestamp)
@@ -57,6 +58,8 @@ def setup_logger(name):
     logger.addHandler(console_handler)
     
     return logger
+
+logger = setup_logger('market_automation_order')
 
 async def send_telegram_alert(error_message):
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -106,7 +109,6 @@ async def scheduler():
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     try:
-        logger = setup_logger('market_automation_order')
         logger.info("서비스 시작")
         loop.run_until_complete(scheduler())
     except KeyboardInterrupt:
