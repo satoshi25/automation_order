@@ -1385,19 +1385,20 @@ def add_manual_order_sheet(df, order):
         traceback.print_exc()
 
 async def main():
-    driver = init_driver()
-    wait = WebDriverWait(driver, timeout=20)
-    alert = Alert(driver)
-    print(f"APIFY_TOKEN: {apify_token[:2]}...")  # 토큰의 앞부분만 출력
-    print(f"ACTOR_INSTA: {actor_insta_profile}")
-    instagram_profile_validator = InstagramValidator(apify_token, actor_insta_profile)
-    instagram_post_validator = InstagramValidator(apify_token, actor_insta_post)
-    youtube_channel_validator = YoutubeValidator(apify_token, actor_youtube_channel)
-    youtube_video_validator = YoutubeValidator(apify_token, actor_youtube_video)
-    tiktok_validator = TiktokValidator(apify_token, actor_tiktok)
-    twitter_validator = TwitterValidator(apify_token, actor_twitter)
 
     try:
+        driver = init_driver()
+        wait = WebDriverWait(driver, timeout=20)
+        alert = Alert(driver)
+        # print(f"APIFY_TOKEN: {apify_token[:2]}...")  # 토큰의 앞부분만 출력
+        # print(f"ACTOR_INSTA: {actor_insta_profile}")
+        instagram_profile_validator = InstagramValidator(apify_token, actor_insta_profile)
+        instagram_post_validator = InstagramValidator(apify_token, actor_insta_post)
+        youtube_channel_validator = YoutubeValidator(apify_token, actor_youtube_channel)
+        youtube_video_validator = YoutubeValidator(apify_token, actor_youtube_video)
+        tiktok_validator = TiktokValidator(apify_token, actor_tiktok)
+        twitter_validator = TwitterValidator(apify_token, actor_twitter)
+        
         cafe24_login(driver, login_page, wait)
         order_list = scrape_orders(driver, order_page, wait)
         orders, order_element = order_list
