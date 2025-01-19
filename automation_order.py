@@ -1293,9 +1293,9 @@ def process_eship(driver, orders, order_element, alert, wait):
         alert.accept()
     return
 
-def alert_manual_orders(hook_url, manual_sheet, orders):
+def alert_manual_orders(hook_url, sheet_manager, orders):
 
-    df = sheet_manager.get_sheet_data(manual_sheet)
+    df = sheet_manager.get_sheet_data('manual_order_list')
 
     for order in orders:
         order_num = order.get("market_order_num")
@@ -1329,9 +1329,11 @@ def alert_manual_orders(hook_url, manual_sheet, orders):
     return 
 
 # 메뉴얼 주문 시트에 입력
-def add_manual_order(manual_order_sheet, orders):
+def add_manual_order(sheet_manager, orders):
 
-    manual_order_data = sheet_manager.get_sheet_data(manual_order_sheet)
+    manual_order_data = sheet_manager.get_sheet_data('manual_order_list')
+    manual_order_sheets = sheet_manager.get_worksheet('manual_order_list')
+
     try:
         for order in orders:
             # 시트에 없을때만 입력하도록 마켓주문번호로 필터
@@ -1341,7 +1343,7 @@ def add_manual_order(manual_order_sheet, orders):
 
             # 일치하는 주문이 없을때 새로 추가
             if len(is_row) == 0:
-                add_manual_order_sheet(manual_order_sheet, order)
+                add_manual_order_sheet(manual_order_sheets, order)
                 print('수동주문 시트 입력완료', order['note'])
             else:
                 print('이미 입력한 주문입니다.')
@@ -1354,7 +1356,7 @@ def add_manual_order(manual_order_sheet, orders):
 
 # 매 단건주문 시트에 입력
 def add_manual_order_sheet(df, order):
-    print()
+    print('manual_order 입력')
     try:
         row_data = [
             str(order.get('market_order_num', '')),
@@ -1420,8 +1422,8 @@ async def main():
         # manual_orders = [{'market_order_num': '20250110-0000112-1', 'order_username': '영재♡\n\n3872253150@k\n', 'service_num': '12', 'quantity': '50', 'order_link': 'hajihye1982', 'order_edit_link': 'https://www.instagram.com/p/DBdhEZnPJGj/', 'order_time': '2025-01-10 17:47:09\n(2025-01-10 17:47:09)', 'check_element': '<selenium.webdriver.remote.webelement.WebElement (session="c5a5f80fe20c18214854a7951ab3d715", element="f.57885A121AEF3F82D8E94D602B74ACBE.d.4230DDD31AE8E34A936937FB26074F7B.e.637")>', 'service_name': '인스타그램 한국인 좋아요', 'store_order_num': {'order': 218372}, 'validate_url': 1}, {'market_order_num': '20250110-0000112-2', 'order_username': '영재♡\n\n3872253150@k\n', 'service_num': '441', 'quantity': '50', 'order_link': 'hajihye1982', 'order_edit_link': -1, 'order_time': '2025-01-10 17:47:09\n(2025-01-10 17:47:09)', 'check_element': '<selenium.webdriver.remote.webelement.WebElement (session="c5a5f80fe20c18214854a7951ab3d715", element="f.57885A121AEF3F82D8E94D602B74ACBE.d.4230DDD31AE8E34A936937FB26074F7B.e.659")>', 'service_name': '인스타그램 한국인 팔로워', 'store_order_num': {'order': 218373}, 'validate_url': 1}]
         
         if len(manual_orders) > 0:
-            add_manual_order(manual_order_sheets, manual_orders)
-            alert_manual_orders(make_hook_url, manual_order_sheets, manual_orders)
+            add_manual_order(sheet_manager, manual_orders)
+            alert_manual_orders(make_hook_url, sheet_manager, manual_orders)
             print('alert 완')
         process_eship(driver, check_orders, order_element, alert, wait)
         print('process_eship 완')
