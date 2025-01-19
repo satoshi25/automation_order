@@ -97,7 +97,7 @@ async def scheduler():
             await asyncio.sleep(1800)
             
         except Exception as e:
-            error_msg = f"Critical error occurred: {e}"
+            error_msg = f"Automation Order critical error occurred: {e}"
             logger.error(error_msg)
             logger.exception("상세 에러:")
             await send_telegram_alert(error_msg)
