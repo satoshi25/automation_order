@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from logging.handlers import RotatingFileHandler
 from automation_order import main
@@ -54,13 +54,13 @@ async def run_with_retry(max_retries=3):
 async def scheduler():
     while True:
         try:
-            start_time = datetime.now()
+            start_time = datetime.now(timezone.utc)
             logger.info(f"Starting execution at {start_time}")
             
             orders = await run_with_retry()
             logger.info(f"Processed orders: {orders}")
             
-            logger.info(f"Completed execution at {datetime.now()}")
+            logger.info(f"Completed execution at {datetime.now(timezone.utc)}")
             await asyncio.sleep(1800)
             
         except Exception as e:
