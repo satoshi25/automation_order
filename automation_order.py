@@ -9,7 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from apify_client import ApifyClientAsync
-from apify_client._errors import ApifyApiError  # ApifyApiError import 추가
+from apify_client._errors import ApifyApiError
 from typing import Optional, Tuple
 from google.auth.exceptions import TransportError
 from google.oauth2 import service_account
@@ -1384,7 +1384,7 @@ def add_manual_order_sheet(df, order):
         print(f"시트 추가 중 오류 발생: {str(e)}")
         traceback.print_exc()
 
-async def main():
+async def main(logger=None, send_alert=None):
 
     try:
         driver = init_driver()
@@ -1433,8 +1433,18 @@ async def main():
         return
         # return
     except Exception as e:
-        print(f"Error: {e}")
-        traceback.print_exc()
+        error_msg = f"Automation Order critical error occurred: {e}"
+
+        if logger:
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+        else:
+            print(f"Error: {e}")
+            traceback.print_exc()
+
+        if send_alert:
+            await send_alert(f"{error_msg}\n\n{traceback.format_exc()}")
+            
         return []
     finally:
         print('완료')
