@@ -160,8 +160,8 @@ class YoutubeValidator(SocialMediaValidator):
         community_patterns = [
             r'youtube\.com/post/[\w-]+',      # youtube.com/post/PostID
             r'youtube\.com/post/[\w-]+\?.*',  # youtube.com/post/PostID?params
-            r'www\.youtube\.com/post/[\w-]+', # www 포함 버전
-            r'www\.youtube\.com/post/[\w-]+\?.*' # www 포함 + 파라미터
+            r'www\.youtube\.com/post/[\w-]+',  # www 포함 버전
+            r'www\.youtube\.com/post/[\w-]+\?.*'  # www 포함 + 파라미터
         ]
         
         return any(re.search(pattern, url) for pattern in community_patterns)
@@ -1289,7 +1289,7 @@ async def check_order_url(orders,
                     # 커뮤니티 좋아요 서비스는 URL 형식만 검증
                     order = await validate_youtube_community(order, youtube_channel_validator, youtube_video_validator)
                 elif '쇼츠' in service_name:
-                    order = await validate_youtube_shorts(order, youtube_video_validator)
+                    order = await validate_youtube_shorts(order, youtube_channel_validator, youtube_video_validator)
                 else:
                     # 기타 유튜브 서비스는 동영상 검증
                     order = await validate_youtube_video(order, youtube_channel_validator, youtube_video_validator)
