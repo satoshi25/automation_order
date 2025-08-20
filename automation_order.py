@@ -82,6 +82,11 @@ class YoutubeValidator(SocialMediaValidator):
             r'youtube\.com/v/[\w-]+'
         ]
         
+        self.SHORTS_PATTERNS = [
+            r'youtube\.com/shorts/[\w-]+',  # 일반 Shorts URL
+            r'youtube\.com/shorts/[\w-]+\?.*'  # 파라미터가 있는 Shorts URL
+        ]
+
         self.CHANNEL_PATTERNS = [
             r'youtube\.com/channel/([\w-]+)',
             r'youtube\.com/c/([\w-]+)',
@@ -108,11 +113,23 @@ class YoutubeValidator(SocialMediaValidator):
         if self._is_video_link(url):
             return True, "video"
         
+        if self._is_shorts_link(url):
+            return True, "shorts"
+        
         # 채널 URL 검사
         if self._is_channel_link(url):
             return True, "channel"
 
         return False, "지원되지 않는 YouTube URL 형식입니다."
+    
+    def _extract_shorts_id(self, url: str) -> Optional[str]:
+        """Shorts ID를 추출합니다."""
+        try:
+            if 'youtube.com/shorts/' in url:
+                return url.split('shorts/')[1].split('?')[0]
+        except Exception as e:
+            print(f"Shorts ID extraction error: {e}")
+        return None
 
     def _is_valid_base_url(self, url: str) -> bool:
         """기본 URL 형식이 유효한지 검사"""
@@ -121,6 +138,10 @@ class YoutubeValidator(SocialMediaValidator):
     def _is_video_link(self, url: str) -> bool:
         """비디오 URL인지 검사"""
         return any(re.search(pattern, url) for pattern in self.VIDEO_PATTERNS)
+    
+    def _is_shorts_link(self, url: str) -> bool:
+        """쇼츠 URL인지 검사"""
+        return any(re.search(pattern, url) for pattern in self.SHORTS_PATTERNS)
 
     def _is_channel_link(self, url: str) -> bool:
         """채널 URL인지 검사"""
@@ -129,6 +150,21 @@ class YoutubeValidator(SocialMediaValidator):
     def _is_comment_link(self, url: str) -> bool:
         '''댓글 URL인지 검사'''
         return any(re.search(pattern, url) for pattern in self.COMMENT_PATTERNS)
+
+    def _is_community_link(self, url: str) -> bool:
+        '''커뮤니티 게시물 URL인지 검사'''
+        if not url:
+            return False
+        
+        url = url.strip().lower()
+        community_patterns = [
+            r'youtube\.com/post/[\w-]+',      # youtube.com/post/PostID
+            r'youtube\.com/post/[\w-]+\?.*',  # youtube.com/post/PostID?params
+            r'www\.youtube\.com/post/[\w-]+', # www 포함 버전
+            r'www\.youtube\.com/post/[\w-]+\?.*' # www 포함 + 파라미터
+        ]
+        
+        return any(re.search(pattern, url) for pattern in community_patterns)
 
     def _extract_channel_id(self, url: str) -> Optional[str]:
         """채널 ID를 추출"""
@@ -211,6 +247,32 @@ class YoutubeValidator(SocialMediaValidator):
             
         except Exception as e:
             print(f"Video validation error: {str(e)}")
+            traceback.print_exc()
+            return [False, []]
+        
+    async def validate_shorts(self, shorts_url: str):
+        """Shorts URL의 유효성을 검증합니다."""
+        try:
+            run = await self.client.actor(self.actor_id).call(
+                run_input={
+                    "searchQueries": [],
+                    "maxResults": 1,
+                    "maxResultsShorts": 1,
+                    "maxResultStreams": 0,
+                    "startUrls": [
+                        {"url": shorts_url},
+                    ],
+                }
+            )
+            
+            dataset_items = await self.client.dataset(run['defaultDatasetId']).list_items()
+            items = dataset_items.items
+            if 'note' in items[0]:
+                return [False, items]
+            return [len(items) > 0 and not items[0].get('error'), items]
+            
+        except Exception as e:
+            print(f"Shorts validation error: {str(e)}")
             traceback.print_exc()
             return [False, []]
 
@@ -732,13 +794,46 @@ async def validate_youtube_comment(order, channel_validator, video_validator):
     is_valid = await video_validator.validate_video(url)
 
     if not is_valid[0]:
-        print(f"결과: {is_valid[1]}")
+        # print(f"결과: {is_valid[1]}")
         print(f"유효하지 않은 동영상입니다: {url}")
         order['validate_url'] = 0
     else:
-        print(is_valid[1])
+        # print(is_valid[1])
         print(f"유효한 동영상입니다: {url}")
         order['validate_url'] = 1
+    return order
+
+async def validate_youtube_shorts(order, channel_validator, video_validator):
+    url = order['order_link']
+
+    if not video_validator._is_shorts_link(url):
+        order['validate_url'] = 0
+        return order
+    
+    is_valid = await video_validator.validate_shorts(url)
+
+    if not is_valid[0]:
+        # print(f"결과: {is_valid[1]}")
+        print(f"유효하지 않은 동영상입니다: {url}")
+        order['validate_url'] = 0
+    else:
+        # print(is_valid[1])
+        print(f"유효한 동영상입니다: {url}")
+        order['validate_url'] = 1
+    return order
+
+async def validate_youtube_community(order, channel_validator, video_validator):
+    """유튜브 커뮤니티 게시물 검증 - URL 형식만 확인"""
+    url = order['order_link']
+
+    if not video_validator._is_community_link(url):
+        print(f"커뮤니티 게시물 형식이 아닙니다: {url}")
+        order['validate_url'] = 0
+        return order
+    
+    # URL 형식이 맞으면 주문 진행
+    print(f"유효한 커뮤니티 게시물 형식입니다: {url}")
+    order['validate_url'] = 1
     return order
 
 
@@ -1190,6 +1285,11 @@ async def check_order_url(orders,
                     order = await validate_youtube_channel(order, youtube_channel_validator, youtube_video_validator)
                 elif '댓글 좋아요' in service_name:
                     order = await validate_youtube_comment(order, youtube_channel_validator, youtube_video_validator)
+                elif '커뮤니티 좋아요' in service_name:
+                    # 커뮤니티 좋아요 서비스는 URL 형식만 검증
+                    order = await validate_youtube_community(order, youtube_channel_validator, youtube_video_validator)
+                elif '쇼츠' in service_name:
+                    order = await validate_youtube_shorts(order, youtube_video_validator)
                 else:
                     # 기타 유튜브 서비스는 동영상 검증
                     order = await validate_youtube_video(order, youtube_channel_validator, youtube_video_validator)
@@ -1403,7 +1503,7 @@ async def main(logger=None, send_alert=None):
         order_list = scrape_orders(driver, order_page, wait)
         orders, order_element = order_list
         # processed_orders = [{'market_order_num': '20250105-0000216-1', 'order_username': '용재\n\n3861898251@k\n[일반회원]\n주문 : 4건\n(총5건)', 'service_num': '501', 'quantity': '100', 'order_link': 'gpl_lesson_official', 'order_edit_link': -1, 'order_time': '2025-01-05 20:14:18\n(2025-01-05 20:17:10)', 'check_element': '<selenium.webdriver.remote.webelement.WebElement (session="3555437cf1ad124aa13d34bb0ea77f0a", element="f.73AC566FA7743A50BA2144D195C33346.d.0B482F9F6996D3A3930BC0F62C8B5F41.e.625")>', 'store_order_num': {'order': 214952}, 'validate_url': 1}, {'market_order_num': '20250105-0000201-1', 'order_username': '용재\n\n3861898251@k\n[일반회원]\n주문 : 4건\n(총5건)', 'service_num': '32', 'quantity': '1000', 'order_link': 'gpl_lesson_official', 'order_edit_link': 'https://www.instagram.com/p/DEcK4YPpRJL/', 'order_time': '2025-01-05 20:10:25\n(2025-01-05 20:11:41)', 'check_element': '<selenium.webdriver.remote.webelement.WebElement (session="3555437cf1ad124aa13d34bb0ea77f0a", element="f.73AC566FA7743A50BA2144D195C33346.d.0B482F9F6996D3A3930BC0F62C8B5F41.e.186")>', 'store_order_num': {'order': 214953}, 'validate_url': 1}, {'market_order_num': '20250105-0000195-1', 'order_username': '현재현\n\nwogus4802\n[일반회원]\n(총1건)', 'service_num': '441', 'quantity': '100', 'order_link': 'jae_07hyeon', 'order_edit_link': -1, 'order_time': '2025-01-05 20:10:12\n(2025-01-05 20:11:55)', 'check_element': '<selenium.webdriver.remote.webelement.WebElement (session="3555437cf1ad124aa13d34bb0ea77f0a", element="f.73AC566FA7743A50BA2144D195C33346.d.0B482F9F6996D3A3930BC0F62C8B5F41.e.673")>', 'store_order_num': {'order': 214954}, 'validate_url': 1}, {'market_order_num': '20250105-0000172-1', 'order_username': '용재\n\n3861898251@k\n[일반회원]\n주문 : 4건\n(총5건)', 'service_num': '12', 'quantity': '200', 'order_link': 'gpl_lesson_official', 'order_edit_link': 'https://www.instagram.com/p/DEcK4YPpRJL/', 'order_time': '2025-01-05 20:07:48\n(2025-01-05 20:11:41)', 'check_element': '<selenium.webdriver.remote.webelement.WebElement (session="3555437cf1ad124aa13d34bb0ea77f0a", element="f.73AC566FA7743A50BA2144D195C33346.d.0B482F9F6996D3A3930BC0F62C8B5F41.e.698")>', 'store_order_num': {'order': 214955}, 'validate_url': 1}, {'market_order_num': '20250105-0000162-1', 'order_username': '용재\n\n3861898251@k\n[일반회원]\n주문 : 4건\n(총5건)', 'service_num': '441', 'quantity': '600', 'order_link': '_01_6__', 'order_edit_link': -1, 'order_time': '2025-01-05 20:00:02\n(2025-01-05 20:05:50)', 'check_element': '<selenium.webdriver.remote.webelement.WebElement (session="3555437cf1ad124aa13d34bb0ea77f0a", element="f.73AC566FA7743A50BA2144D195C33346.d.0B482F9F6996D3A3930BC0F62C8B5F41.e.723")>', 'store_order_num': {'order': 214956}, 'validate_url': 1}]
-        # orders = [{'market_order_num': '20250105-0000037-1', 'order_username': '이아인\n\nain0117\n[일반회원]\n(총1건)', 'service_num': '441', 'quantity': '100', 'order_link': '@ax._inz', 'order_edit_link': -1, 'order_time': '2025-01-05 01:41:23\n(2025-01-05 01:41:23)', 'check_element': '<selenium.webdriver.remote.webelement.WebElement (session="aec1fe2f1114c204a7f38ef7f63781a3", element="f.5A6331A0EC134EFD7F8B5D5C3632D259.d.06E3BCDD94CF186826E1FCE33451DD04.e.641")>', 'store_order_num': -1, 'validate_url': -1}]
+        orders = [{'market_order_num': '20250105-0000037-1', 'order_username': '이아인\n\nain0117\n[일반회원]\n(총1건)', 'service_num': '68', 'quantity': '100', 'order_link': 'https://youtube.com/shorts/aVl7ypCrH78?si=BKuMGN_ptwyum2Vo', 'order_edit_link': -1, 'order_time': '2025-01-05 01:41:23\n(2025-01-05 01:41:23)', 'check_element': '<selenium.webdriver.remote.webelement.WebElement (session="aec1fe2f1114c204a7f38ef7f63781a3", element="f.5A6331A0EC134EFD7F8B5D5C3632D259.d.06E3BCDD94CF186826E1FCE33451DD04.e.641")>', 'store_order_num': -1, 'validate_url': -1}]
         processed_orders, manual_orders = await check_order_url(
             orders,
             instagram_profile_validator,
