@@ -1384,13 +1384,32 @@ def process_order(order_sheets, orders):
         result = [True, orders, is_manual_orders]
     return result
 
+# 기존 배송처리
+# def process_es리ip(driver, orders, order_element, alert, wait):
+#     if orders[0]:
+#         driver.execute_script("arguments[0].click();", order_element)
+#         alert = wait.until(EC.alert_is_present())
+#         alert.accept()
+#         alert = wait.until(EC.alert_is_present())
+#         alert.accept()
+#     return
+
+# 배송처리
 def process_eship(driver, orders, order_element, alert, wait):
     if orders[0]:
-        driver.execute_script("arguments[0].click();", order_element)
-        alert = wait.until(EC.alert_is_present())
-        alert.accept()
-        alert = wait.until(EC.alert_is_present())
-        alert.accept()
+        try:
+            driver.execute_script("arguments[0].click();", order_element)
+
+            # 첫 번째 alert
+            alert = wait.until(EC.alert_is_present())  # 기존 20초 유지
+            alert.accept()
+
+            # 두 번째 alert
+            alert = wait.until(EC.alert_is_present())  # 기존 20초 유지
+            alert.accept()
+
+        except TimeoutException:
+            print("Alert 처리 완료 또는 배송할 주문 없음")
     return
 
 def alert_manual_orders(hook_url, sheet_manager, orders):
